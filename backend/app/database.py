@@ -1,17 +1,21 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "postgresql://postgres:sham123@localhost:5432/aivoa_crm"
+from app.config import DATABASE_URL
 
-engine = create_engine(DATABASE_URL)
+# SQLite needs this flag because FastAPI serves requests from several threads.
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind=engine
+    bind=engine,
 )
 
 Base = declarative_base()
+
 
 def get_db():
     db = SessionLocal()

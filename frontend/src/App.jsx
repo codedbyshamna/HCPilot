@@ -1,206 +1,98 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { api } from "./api";
+import ChatPanel from "./components/ChatPanel";
+import InteractionForm from "./components/InteractionForm";
+import InteractionList from "./components/InteractionList";
+import ThemeToggle from "./components/ThemeToggle";
 import "./App.css";
 
-function App() {
-  const [form, setForm] = useState({
-    hcp_name: "",
-    interaction_type: "",
-    interaction_date: "",
-    interaction_time: "",
-    attendees: "",
-    topics_discussed: "",
-    materials_shared: "",
-    samples_distributed: "",
-    sentiment: "",
-    outcomes: "",
-    follow_up_actions: "",
-  });
+export default function App() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [notice, setNotice] = useState(null);
 
-  const [message, setMessage] = useState("");
-  const [reply, setReply] = useState("");
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const saveInteraction = async () => {
+  const refresh = useCallback(async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/interactions/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
-
-      const data = await response.json();
-
-      alert("Interaction Saved Successfully!");
-      console.log(data);
+      setItems(await api.listInteractions());
+      setListError("");
     } catch (err) {
-      alert("Error saving interaction");
-      console.error(err);
+      setListError(err.message);
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    // Loads data from the backend; refresh only sets state after the request finishes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const handleSaved = (saved, wasEdit) => {
+    setNotice({ type: "success", text: `${wasEdit ? "Updated" : "Saved"} interaction #${saved.id} with ${saved.hcp_name}.` });
+    setEditing(null);
+    refresh();
   };
 
-  const askAI = async () => {
+  const handleDelete = async (item) => {
+    if (!window.confirm(`Delete interaction #${item.id} with ${item.hcp_name}?`)) return;
     try {
-      const response = await fetch("http://127.0.0.1:8000/ai/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: message,
-        }),
-      });
-
-      const data = await response.json();
-      setReply(data.response);
+      await api.deleteInteraction(item.id);
+      if (editing?.id === item.id) setEditing(null);
+      setNotice({ type: "success", text: `Deleted interaction #${item.id}.` });
+      refresh();
     } catch (err) {
-      setReply("Unable to connect to AI.");
-      console.error(err);
+      setNotice({ type: "error", text: err.message });
     }
   };
 
   return (
-    <div
-      style={{
-        maxWidth: "800px",
-        margin: "30px auto",
-        fontFamily: "Arial",
-      }}
-    >
-      <h1>AI First CRM - HCP Interaction</h1>
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <span className="logo" aria-hidden="true">+</span>
+          <div>
+            <h1>AI-First CRM</h1>
+            <p className="muted">Healthcare professional interactions</p>
+          </div>
+        </div>
+        <ThemeToggle />
+      </header>
 
-      <hr />
+      {notice && (
+        <div className={`notice ${notice.type}`} role="status">
+          {notice.text}
+        </div>
+      )}
 
-      <h2>Log Interaction</h2>
-
-      <input
-        name="hcp_name"
-        placeholder="HCP Name"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        name="interaction_type"
-        placeholder="Interaction Type"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        type="date"
-        name="interaction_date"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        type="time"
-        name="interaction_time"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        name="attendees"
-        placeholder="Attendees"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        name="topics_discussed"
-        placeholder="Topics Discussed"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        name="materials_shared"
-        placeholder="Materials Shared"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        name="samples_distributed"
-        placeholder="Samples Distributed"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        name="sentiment"
-        placeholder="Sentiment"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        name="outcomes"
-        placeholder="Outcome"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <input
-        name="follow_up_actions"
-        placeholder="Follow Up Actions"
-        onChange={handleChange}
-      />
-      <br />
-      <br />
-
-      <button onClick={saveInteraction}>
-        Save Interaction
-      </button>
-
-      <hr />
-
-      <h2>AI Chat</h2>
-
-      <input
-        style={{ width: "400px" }}
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="Ask the AI..."
-      />
-
-      <button onClick={askAI}>
-        Send
-      </button>
-
-      <h3>AI Response</h3>
-
-      <div
-        style={{
-          background: "#f2f2f2",
-          padding: "15px",
-          borderRadius: "8px",
-          minHeight: "80px",
-        }}
-      >
-        {reply}
-      </div>
+      <main className="grid">
+        <InteractionForm
+          key={editing?.id ?? "new"}
+          editing={editing}
+          onSaved={handleSaved}
+          onCancel={() => setEditing(null)}
+        />
+        <ChatPanel onDataChanged={refresh} />
+        <InteractionList
+          items={items}
+          loading={loading}
+          error={listError}
+          editingId={editing?.id}
+          onEdit={(item) => {
+            setEditing(item);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          onDelete={handleDelete}
+        />
+      </main>
     </div>
   );
 }
-
-export default App;
