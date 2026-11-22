@@ -1,4 +1,4 @@
-# AI-First CRM – HCP Interaction Module
+# HCPilot AI – AI-Powered HCP Interaction CRM – HCP Interaction Module
 
 An AI-powered CRM for pharmaceutical field representatives to record their interactions with Healthcare Professionals (HCPs). Interactions can be logged through a form or by chatting with an AI assistant built with LangGraph and a free Groq-hosted LLM. The assistant reads and writes the same database as the form.
 
